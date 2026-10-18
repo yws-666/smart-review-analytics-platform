@@ -52,3 +52,9 @@
 pip install -r requirements.txt
 python run.py          # 浏览器访问 http://127.0.0.1:5000
 ```
+
+## 数据来源
+
+原始数据来自 [Yelp Open Dataset](https://www.yelp.com/dataset)，版权归 Yelp 所有，遵循其许可条款仅用于课程教学。
+
+- 声明详情：见 [数据来源声明.md](数据来源声明.md)（数据范围：`data/travelreview.db（分卷）`）
