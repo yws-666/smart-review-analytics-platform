@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智评优选 - SmartReview</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/vue@3.4/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue-router@4.3/dist/vue-router.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios@1.6/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <nav class="top-nav">
+    <div class="logo" @click="goHome">智评优选<span>SmartReview</span></div>
+    <div class="module-tabs">
+      <button :class="['tab', module==='user'?'active':'']" @click="switchModule('user')">用户端</button>
+      <button :class="['tab', module==='merchant'?'active':'']" @click="switchModule('merchant')" v-if="canAccessMerchant">商家后台</button>
+      <button :class="['tab', module==='platform'?'active':'']" @click="switchModule('platform')" v-if="canAccessPlatform">平台端</button>
+    </div>
+    <div class="user-widget" v-if="token">
+      <span @click="switchModule('user');goPage('center')">{{ username }}</span>
+      <button class="btn btn-sm btn-outline-white" @click="logout">退出</button>
+    </div>
+    <div class="user-widget" v-else>
+      <button class="btn btn-sm btn-outline-white" @click="switchModule('user');goPage('login')">登录</button>
+    </div>
+  </nav>
+
+  <div class="app-body">
+    <aside class="sidebar" v-if="sidebarItems && sidebarItems.length > 0">
+      <div class="menu-group" v-for="g in sidebarItems">
+        <div class="menu-group-title">{{ g.title }}</div>
+        <div :class="['menu-item', item.id===currentPage?'active':'']"
+             v-for="item in g.items" @click="goPage(item.id)">
+          <span class="icon">{{ item.icon }}</span>{{ item.label }}
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <component :is="currentComponent" :token="token" :api="api" :module="module" :username="username"
+                 :go-back="goBackFn" :can-go-back="canGoBack"
+                 @navigate="(page) => goPage(page)" @switch-module="(mod) => switchModule(mod)"></component>
+    </main>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/pages/user/Home.js"></script>
+<script src="js/pages/user/Detail.js"></script>
+<script src="js/pages/user/Search.js"></script>
+<script src="js/pages/user/Center.js"></script>
+<script src="js/pages/user/Favorites.js"></script>
+<script src="js/pages/user/History.js"></script>
+<script src="js/pages/user/Preferences.js"></script>
+<script src="js/pages/user/Login.js"></script>
+<script src="js/pages/merchant/Login.js"></script>
+<script src="js/pages/merchant/Dashboard.js"></script>
+<script src="js/pages/merchant/Pages.js"></script>
+<script src="js/pages/platform/Login.js"></script>
+<script src="js/pages/platform/Dashboard.js"></script>
+<script src="js/pages/platform/Quality.js"></script>
+<script src="js/pages/platform/Compare.js"></script>
+<script src="js/pages/platform/Users.js"></script>
+<script src="js/pages/platform/Behavior.js"></script>
+<script>
+const { createApp, ref, computed } = Vue;
+
+const EventBus = {
+  events: {},
+  on(event, callback) {
+    if (!this.events[event]) this.events[event] = [];
+    this.events[event].push(callback);
+  },
+  emit(event, ...args) {
+    if (this.events[event]) {
+      this.events[event].forEach(cb => cb(...args));
+    }
+  },
+  off(event, callback) {
+    if (this.events[event]) {
+      this.events[event] = this.events[event].filter(cb => cb !== callback);
+    }
+  }
+};
+
+const app = createApp({
+  setup() {
+    const module = ref('user');
+    const currentPage = ref('home');
+    const token = ref(localStorage.getItem('travel_token') || '');
+    const username = ref(localStorage.getItem('travel_user') || '');
+    const role = ref(localStorage.getItem('travel_role') || '');
+    const pageHistory = ref([]);
+
+    const api = new TravelAPI(token);
+
+    const goPage = (page) => {
+      if (currentPage.value !== page) {
+        pageHistory.value.push(currentPage.value);
+        if (pageHistory.value.length > 10) pageHistory.value.shift();
+      }
+      currentPage.value = page;
+    };
+    
+    const goBackFn = () => {
+      if (pageHistory.value.length > 0) {
+        currentPage.value = pageHistory.value.pop();
+      } else {
+        goHome();
+      }
+    };
+    
+    const canGoBack = computed(() => pageHistory.value.length > 0);
+    
+    const goHome = () => { 
+      pageHistory.value = [];
+      module.value = 'user'; 
+      currentPage.value = 'home'; 
+    };
+    
+    if (token.value) {
+      const savedModule = localStorage.getItem('travel_module') || 'user';
+      module.value = savedModule;
+      if (savedModule === 'user') currentPage.value = 'home';
+      else if (savedModule === 'merchant') currentPage.value = 'merchant-dashboard';
+      else currentPage.value = 'platform-dashboard';
+    }
+
+    const canAccessMerchant = computed(() => {
+      return !token.value || role.value === 'merchant' || role.value === 'admin';
+    });
+    const canAccessPlatform = computed(() => {
+      return !token.value || role.value === 'admin';
+    });
+
+    function switchModule(mod) {
+      if (mod === 'merchant' && token.value && role.value !== 'merchant' && role.value !== 'admin') {
+        alert('您没有权限访问商家后台');
+        return;
+      }
+      if (mod === 'platform' && token.value && role.value !== 'admin') {
+        alert('您没有权限访问平台端');
+        return;
+      }
+      module.value = mod;
+      localStorage.setItem('travel_module', mod);
+      if (mod === 'user') currentPage.value = 'home';
+      else if (mod === 'merchant') currentPage.value = token.value ? 'merchant-dashboard' : 'merchant-login';
+      else currentPage.value = token.value ? 'platform-dashboard' : 'platform-login';
+    }
+
+    function logout() {
+      token.value = '';
+      username.value = '';
+      role.value = '';
+      localStorage.removeItem('travel_token');
+      localStorage.removeItem('travel_user');
+      localStorage.removeItem('travel_role');
+      localStorage.removeItem('travel_module');
+      window.location.reload();
+    }
+
+    const sidebarItems = computed(() => {
+      if (module.value === 'user') return [
+        {title:'浏览', items:[{id:'home',icon:'🏠',label:'首页'},{id:'detail',icon:'🏪',label:'商家详情'},{id:'search',icon:'🔍',label:'搜索结果'}]},
+        {title:'我的', items:[{id:'center',icon:'👤',label:'用户中心'},{id:'favorites',icon:'❤️',label:'我的收藏'},{id:'history',icon:'📋',label:'浏览历史'},{id:'preferences',icon:'⚙️',label:'偏好设置'}]},
+        {title:'账户', items:[{id:'login',icon:'🔑',label:'登录注册'}]}
+      ];
+      if (module.value === 'merchant') return [
+        {title:'概览', items:[{id:'merchant-login',icon:'🔑',label:'商家登录'},{id:'merchant-dashboard',icon:'📊',label:'数据概览'}]},
+        {title:'分析', items:[{id:'merchant-analysis',icon:'📈',label:'数据分析'},{id:'merchant-trends',icon:'📉',label:'趋势分析'},{id:'merchant-wordcloud',icon:'☁️',label:'评论词云'}]},
+        {title:'管理', items:[{id:'merchant-info',icon:'✏️',label:'信息修改'}]}
+      ];
+      if (module.value === 'platform') return [
+        {title:'概览', items:[{id:'platform-login',icon:'🔑',label:'管理员登录'},{id:'platform-dashboard',icon:'🖥️',label:'数据监控'}]},
+        {title:'管理', items:[{id:'platform-quality',icon:'✅',label:'数据质量'},{id:'platform-compare',icon:'📊',label:'对比分析'},{id:'platform-users',icon:'👥',label:'用户管理'},{id:'platform-behavior',icon:'📱',label:'行为分析'}]}
+      ];
+      return [];
+    });
+
+    const currentComponent = computed(() => {
+      const map = {
+        'home': UserHome, 'detail': UserDetail, 'search': UserSearch,
+        'center': UserCenter, 'favorites': UserFavorites, 'history': UserHistory,
+        'preferences': UserPreferences, 'login': UserLogin,
+        'merchant-login': MerchantLogin, 'merchant-dashboard': MerchantDashboard,
+        'merchant-analysis': MerchantAnalysis, 'merchant-trends': MerchantTrends,
+        'merchant-wordcloud': MerchantWordCloud, 'merchant-info': MerchantInfo,
+        'platform-login': PlatformLogin, 'platform-dashboard': PlatformDashboard,
+        'platform-quality': PlatformQuality, 'platform-compare': PlatformCompare,
+        'platform-users': PlatformUsers, 'platform-behavior': PlatformBehavior
+      };
+      return map[currentPage.value] || UserHome;
+    });
+
+    return { module, currentPage, token, username, role, api, sidebarItems, currentComponent,
+             canAccessMerchant, canAccessPlatform, canGoBack,
+             goPage, goHome, goBackFn, switchModule, logout };
+  }
+});
+
+app.mount('#app');
+</script>
+</body>
+</html>

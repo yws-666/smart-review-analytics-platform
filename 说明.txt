@@ -1,0 +1,13 @@
+数据来源地址：https://www.yelp.com/dataset
+
+
+数据处理的代码为：
+数据压缩代码：compress_yelp_data.py
+数据清洗代码：process_yelp_data.py
+商家分类代码：classify_business.py
+经过compress_yelp_data.py到process_yelp_data.py到classify_business.py可以得到数据处理过后的数据集
+
+
+注意说明：由于原始数据过于庞大，原数据接近10g,经过数据处理后的数据也有3g左右，为了方便把项目提交，提交的项目的数据集是在经过数据处理后的数据里随机筛选出来大小为255mb的数据，作为项目的测试
+
+如何使用：项目是经过requirements.txt下载好运行环境后，然后运行run.py,然后在浏览器输入http://127.0.0.1:5000，进入网页，输入账户与密码.txt里的账号和密码即可登录。
