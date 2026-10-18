@@ -12,7 +12,7 @@
 - **安全**：JWT 无状态认证、SHA-256 密码哈希、角色声明
 - **9 张表 ORM 数据模型**（SQLAlchemy），商户表 34 个字段
 
-## 功能实测（2026-10 复现验证）
+## 功能实测
 
 项目在新环境（Python 3.13 + 最新 Flask 栈）**一次启动成功**，49 项接口功能测试 45 项通过：
 
@@ -34,7 +34,17 @@
 └── requirements.txt        # 运行环境（版本已锁定）
 ```
 
-> ⚠️ 演示数据库 `data/travelreview.db`（255 MB）与测试账号文件超出/涉及隐私，未包含在仓库中；按 `requirements.txt` 安装依赖后运行 `scripts/init_db.py` 可重建。
+> 📦 演示数据库 `data/travelreview.db`（255 MB，含 780 家商户、10 万+ 打卡、4,111 用户）超过 GitHub 单文件 100 MB 限制，以 95 MB 分卷存储于 `data/`。合并还原：
+>
+> ```bash
+> # Linux / macOS / Git Bash
+> cat data/travelreview.db.part* > data/travelreview.db
+>
+> # Windows CMD
+> copy /b data\travelreview.db.part* data\travelreview.db
+> ```
+>
+> 合并后按 `requirements.txt` 安装依赖，运行 `python run.py` 即可使用全部功能。
 
 ## 运行方式
 
